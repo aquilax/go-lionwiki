@@ -2,8 +2,14 @@ package main
 
 import "net/http"
 
+type ActionType string
+
+const (
+	ActionEdit ActionType = "edit"
+)
+
 type Session struct {
-	Action      string
+	Action      ActionType
 	Page        string
 	Content     string
 	MoveTo      string
@@ -16,7 +22,7 @@ type Session struct {
 func NewSession(r *http.Request) *Session {
 	q := r.URL.Query()
 	s := &Session{
-		Action:      q.Get("action"),
+		Action:      ActionType(q.Get("action")),
 		Lang:        clearPath(q.Get("lang")),
 		Page:        clearPath(q.Get("page")),
 		MoveTo:      clearPath(q.Get("moveto")),
