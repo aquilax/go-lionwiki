@@ -44,7 +44,7 @@ func (t *Template) Render(w http.ResponseWriter, s *Session, st *Settings) {
 		val, _ = v.(string)
 		repl := ""
 		if len(val) > 0 {
-			repl = "$2 " + strings.Replace(strings.TrimSpace(val), "$", "&#36;", -1) + "$4"
+			repl = "${2}" + strings.Replace(strings.TrimSpace(val), "$", "&#36;", -1) + "${4}"
 		}
 		content = re.ReplaceAllString(content, repl)
 	}
