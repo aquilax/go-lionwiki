@@ -11,8 +11,8 @@ type LionWiki struct {
 	s *Settings
 }
 
-func NewLionWiki() *LionWiki {
-	return &LionWiki{}
+func NewLionWiki(s *Settings) *LionWiki {
+	return &LionWiki{s}
 }
 
 func (lw *LionWiki) wikiHandler(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +45,8 @@ func (lw *LionWiki) wikiHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Not Implemented"))
 }
 
-func (lw *LionWiki) Run(s *Settings) error {
-	if err := lw.createDirectories(s); err != nil {
+func (lw *LionWiki) Run() error {
+	if err := lw.createDirectories(lw.s); err != nil {
 		return err
 	}
 	// Load Plugins
