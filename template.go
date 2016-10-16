@@ -31,10 +31,10 @@ func NewTemplateVars() *TemplateVars {
 	return &tv
 }
 
-func (t *Template) Render(w http.ResponseWriter, s *Session) {
+func (t *Template) Render(w http.ResponseWriter, s *Session, settings *Settings) {
 	content := t.content
 	var val string
-	for k, v := range *(NewTVFromSession(s)) {
+	for k, v := range *(NewTVFromSession(s, settings)) {
 		re := regexp.MustCompile(`\{(([^}{]*) )?` + k + `( ([^}]*))?\}`)
 		val, _ = v.(string)
 		repl := ""
@@ -42,12 +42,11 @@ func (t *Template) Render(w http.ResponseWriter, s *Session) {
 			repl = "$2" + strings.Replace(strings.TrimSpace(val), "$", "&#36;", -1) + "$4"
 		}
 		content = re.ReplaceAll(content, []byte(repl))
-		// content = strings.Replace(content, k, val, -1)
 	}
 	w.Write(content)
 }
 
-func NewTVFromSession(s *Session) *TemplateVars {
+func NewTVFromSession(s *Session, settings *Settings) *TemplateVars {
 	tv := NewTemplateVars()
 	if s.Action != ActionNone {
 		tv.Set("HEAD", s.Head+`<meta name="robots" content="noindex, nofollow"/>`)
@@ -66,29 +65,35 @@ func NewTVFromSession(s *Session) *TemplateVars {
 		tv.Set("HISTORY", `<a href=\"$self?page=".u($page)."&amp;action=history\">$T_HISTORY</a>`)
 	}
 
-	// 'PAGE_TITLE' => h($page == $START_PAGE && $page == $TITLE ? $WIKI_TITLE : $TITLE),
-	// 'PAGE_TITLE_HEAD' => h($TITLE),
-	// 'PAGE_URL' => u($page),
+	if s.Page == settings.StartPage && s.Page == s.Title {
+		tv.Set("PAGE_TITLE", settings.WikiTitle)
+	} else {
+		tv.Set("PAGE_TITLE", s.Title)
+	}
+	tv.Set("PAGE_TITLE_HEAD", h(s.Title))
+	tv.Set("PAGE_URL", u(s.Page))
+
 	// 'EDIT' => !$action ? ("<a href=\"$self?page=".u($page)."&amp;action=edit".(is_writable("$PG_DIR$page.txt") ? "\">$T_EDIT</a>" : "&amp;showsource=1\">$T_SHOW_SOURCE</a>")) : "",
-	// 'WIKI_TITLE' => h($WIKI_TITLE),
+	//
+	tv.Set("WIKI_TITLE", h(settings.WikiTitle))
 	// 'LAST_CHANGED_TEXT' => $last_changed_ts ? $T_LAST_CHANGED : "",
 	// 'LAST_CHANGED' => $last_changed_ts ? date($DATE_FORMAT, $last_changed_ts + $LOCAL_HOUR * 3600) : "",
 	// 'CONTENT' => $action != "edit" ? $CON : "",
-	// 'TOC' => $TOC,
+	tv.Set("TOC", s.TOC)
 	// 'SYNTAX' => $action == "edit" || $preview ? "<a href=\"$SYNTAX_PAGE\">$T_SYNTAX</a>" : "",
 	// 'SHOW_PAGE' => $action == "edit" || $preview ? "<a href=\"$self?page=".u($page)."\">$T_SHOW_PAGE</a>" : "",
 	// 'COOKIE' => '<a href="'.$self.'?page='.u($page).'&amp;action='.u($action).'&amp;erasecookie=1">'.$T_ERASE_COOKIE.'</a>',
-	// 'CONTENT_FORM' => $CON_FORM_BEGIN,
-	// '\/CONTENT_FORM' => $CON_FORM_END,
-	// 'CONTENT_TEXTAREA' => $CON_TEXTAREA,
-	// 'CONTENT_SUBMIT' => $CON_SUBMIT,
-	// 'CONTENT_PREVIEW' => $CON_PREVIEW,
-	// 'RENAME_TEXT' => $RENAME_TEXT,
-	// 'RENAME_INPUT' => $RENAME_INPUT,
-	// 'EDIT_SUMMARY_TEXT' => $EDIT_SUMMARY_TEXT,
-	// 'EDIT_SUMMARY_INPUT' => $EDIT_SUMMARY,
-	// 'FORM_PASSWORD' => $FORM_PASSWORD,
-	// 'FORM_PASSWORD_INPUT' => $FORM_PASSWORD_INPUT
+	tv.Set("CONTENT_FORM", s.ConFormBegin)
+	tv.Set("/CONTENT_FORM", s.ConFormEnd)
+	tv.Set("CONTENT_TEXTAREA", s.ConTextarea)
+	tv.Set("CONTENT_SUBMIT", s.ConSubmit)
+	tv.Set("CONTENT_PREVIEW", s.ConPreview)
+	tv.Set("RENAME_TEXT", s.RenameText)
+	tv.Set("RENAME_INPUT", s.RenameInput)
+	tv.Set("EDIT_SUMMARY_TEXT", s.EditSummaryText)
+	tv.Set("EDIT_SUMMARY_INPUT", s.EditSummary)
+	tv.Set("FORM_PASSWORD", s.FormPassword)
+	tv.Set("FORM_PASSWORD_INPUT", s.FormPasswordInput)
 	return tv
 
 }

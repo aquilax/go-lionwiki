@@ -24,14 +24,19 @@ type Session struct {
 	ShowSource  bool
 	Error       string
 
-	Head            string
-	ConFormBegin    string
-	ConFormEnd      string
-	ConPreview      string
-	ConTextarea     string
-	ConSubmit       string
-	EditSummaryText string
-	EditSummary     string
+	Head              string
+	ConFormBegin      string
+	ConFormEnd        string
+	ConPreview        string
+	ConTextarea       string
+	ConSubmit         string
+	EditSummaryText   string
+	EditSummary       string
+	RenameText        string
+	RenameInput       string
+	FormPassword      string
+	FormPasswordInput string
+	TOC               string
 }
 
 func NewSession(r *http.Request) *Session {

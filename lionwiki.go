@@ -1,6 +1,7 @@
 package main
 
 import (
+	"html"
 	"net/http"
 	"net/url"
 	"os"
@@ -46,7 +47,7 @@ func (lw *LionWiki) wikiHandler(w http.ResponseWriter, r *http.Request) {
 	if s.Action == ActionEdit || s.Preview {
 		lw.Edit(s)
 	}
-	lw.t.Render(w, s)
+	lw.t.Render(w, s, lw.s)
 	w.Write([]byte("Not Implemented"))
 }
 
@@ -119,4 +120,12 @@ func fileExists(filePath string) bool {
 		return false
 	}
 	return true
+}
+
+func h(text string) string {
+	return html.EscapeString(text)
+}
+func u(text string) string {
+	// TODO: index.php:511
+	return text
 }
