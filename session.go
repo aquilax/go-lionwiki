@@ -5,31 +5,33 @@ import "net/http"
 type ActionType string
 
 const (
-	ActionNone ActionType = ""
-	ActionEdit ActionType = "edit"
+	ActionNone     ActionType = ""
+	ActionEdit     ActionType = "edit"
+	ActionViewHTML ActionType = "view-html"
+	ActionRev      ActionType = "rev"
 )
 
 type Session struct {
-	Tr            *Translation
-	Self          string
-	Action        ActionType
-	Title         string
-	Page          string
-	Content       string
-	MoveTo        string
-	F1            string
-	F2            string
-	Lang          string
-	Erasecookie   bool
-	Preview       bool
-	ShowSource    bool
-	Error         string
-	Query         string
-	IsWritable    bool
-	LastChangedTs int
-	Par           string
-	Esum          string
-
+	Tr                *Translation
+	Self              string
+	Action            ActionType
+	Title             string
+	Page              string
+	Content           string
+	MoveTo            string
+	F1                string
+	F2                string
+	Lang              string
+	Erasecookie       bool
+	Preview           bool
+	ShowSource        bool
+	Error             string
+	Query             string
+	IsWritable        bool
+	LastChangedTs     int
+	Par               string
+	Esum              string
+	Restore           bool
 	Head              string
 	ConFormBegin      string
 	ConFormEnd        string
@@ -58,6 +60,7 @@ func NewSession(r *http.Request) *Session {
 		F1:          clearPath(q.Get("f1")),
 		F2:          clearPath(q.Get("f2")),
 		Content:     r.PostForm.Get("content"),
+		Restore:     r.PostForm.Get("restore") == "1",
 		Erasecookie: len(q.Get("erasecookie")) > 0,
 		Error:       q.Get("error"),
 		Preview:     len(r.PostForm.Get("preview")) > 0,
@@ -71,4 +74,9 @@ func NewSession(r *http.Request) *Session {
 func clearPath(path string) string {
 	// TODO: index.php:516
 	return path
+}
+
+func (s *Session) Authentified() bool {
+	// TODO:
+	return false
 }

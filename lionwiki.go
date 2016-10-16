@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"html"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -41,6 +42,27 @@ func (lw *LionWiki) wikiHandler(w http.ResponseWriter, r *http.Request) {
 		if !fileExists(lw.st.PgDir + s.Page + ".txt") {
 			s.Action = ActionEdit
 		}
+	}
+
+	if lw.st.ProtectedRead && !s.Authentified() {
+		// does user need password to read content of site. If yes, ask for it.
+		s.Content = fmt.Sprintf(`<form action=\"%s?page=%s" method="post"><p>%s <input type="password" name="sc"/> <input class="submit" type="submit"/></p></form>`, s.Self, u(s.Page), s.Tr.Get("T_PROTECTED_READ"))
+		s.Action = ActionViewHTML
+	} else if s.Restore || s.Action == ActionRev { // Show old revision
+		// TODO: s.Content = @file_get_contents("$HIST_DIR$page/$f1");
+		if s.Action == ActionRev {
+			//revRestore := fmt.Sprintf(`[%s|./%s?page=%s&amp;action=edit&amp;f1=%s&amp;restore=1]`, s.Tr.Get("T_RESTORE"), s.Self, u(s.Page), s.F1)
+			// TODO: $CON = strtr($T_REVISION, array('{TIME}' => rev_time($f1), '{RESTORE}' => $rev_restore)) . $CON;
+			s.Action = ActionNone
+		}
+	} else if len(s.Page) > 0 && (s.Action == ActionNone || s.Action == ActionEdit) {
+		// TODO: Handle err
+		b, _ := ioutil.ReadFile(lw.st.PgDir + s.Page + ".txt")
+		s.Content = string(b)
+		// TODO: $CON = $par ? get_paragraph($CON, $par) : $CON;
+
+		// if(!$action && substr($CON, 0, 10) == '{redirect:' && $_REQUEST['redirect'] != 'no')
+		// 	die(header("Location:$self?page=".u(clear_path(substr($CON, 10, strpos($CON, '}') - 10)))));
 	}
 
 	if s.Action == ActionEdit || s.Preview {
