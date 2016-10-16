@@ -10,19 +10,25 @@ const (
 )
 
 type Session struct {
-	t           *Translation
-	Action      ActionType
-	Title       string
-	Page        string
-	Content     string
-	MoveTo      string
-	F1          string
-	F2          string
-	Lang        string
-	Erasecookie bool
-	Preview     bool
-	ShowSource  bool
-	Error       string
+	Tr            *Translation
+	Self          string
+	Action        ActionType
+	Title         string
+	Page          string
+	Content       string
+	MoveTo        string
+	F1            string
+	F2            string
+	Lang          string
+	Erasecookie   bool
+	Preview       bool
+	ShowSource    bool
+	Error         string
+	Query         string
+	IsWritable    bool
+	LastChangedTs int
+	Par           string
+	Esum          string
 
 	Head              string
 	ConFormBegin      string
@@ -43,7 +49,8 @@ func NewSession(r *http.Request) *Session {
 	q := r.URL.Query()
 	page := clearPath(q.Get("page"))
 	s := &Session{
-		t:           NewTranslation(),
+		Self:        "/",
+		Tr:          NewTranslation(),
 		Action:      ActionType(q.Get("action")),
 		Lang:        clearPath(q.Get("lang")),
 		Page:        page,
@@ -56,6 +63,7 @@ func NewSession(r *http.Request) *Session {
 		Preview:     len(r.PostForm.Get("preview")) > 0,
 		ShowSource:  len(r.PostForm.Get("showsource")) > 0,
 		Title:       page,
+		IsWritable:  false,
 	}
 	return s
 }

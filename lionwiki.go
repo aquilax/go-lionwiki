@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html"
 	"net/http"
 	"net/url"
@@ -9,8 +10,8 @@ import (
 )
 
 type LionWiki struct {
-	s *Settings
-	t *Template
+	st *Settings
+	t  *Template
 }
 
 func NewLionWiki(s *Settings) *LionWiki {
@@ -26,20 +27,18 @@ func (lw *LionWiki) wikiHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(s.Action) == 0 {
 		if len(s.Page) == 0 {
-			v := url.Values{}
-			v.Set("page", lw.s.StartPage)
-			http.Redirect(w, r, "/?"+v.Encode(), http.StatusMovedPermanently)
+			http.Redirect(w, r, s.Self+"?page="+u(lw.st.StartPage), http.StatusMovedPermanently)
 			return
 		}
 		// language variant
-		if fileExists(lw.s.PgDir + s.Page + "." + s.Lang + ".txt") {
+		if fileExists(lw.st.PgDir + s.Page + "." + s.Lang + ".txt") {
 			v := url.Values{}
 			v.Set("page", s.Page+"."+s.Lang)
 			http.Redirect(w, r, "/?"+v.Encode(), http.StatusFound)
 			return
 		}
 		// create page if it doesn't exist
-		if !fileExists(lw.s.PgDir + s.Page + ".txt") {
+		if !fileExists(lw.st.PgDir + s.Page + ".txt") {
 			s.Action = ActionEdit
 		}
 	}
@@ -47,17 +46,16 @@ func (lw *LionWiki) wikiHandler(w http.ResponseWriter, r *http.Request) {
 	if s.Action == ActionEdit || s.Preview {
 		lw.Edit(s)
 	}
-	lw.t.Render(w, s, lw.s)
-	w.Write([]byte("Not Implemented"))
+	lw.t.Render(w, s, lw.st)
 }
 
 func (lw *LionWiki) Run() error {
-	if err := lw.createDirectories(lw.s); err != nil {
+	if err := lw.createDirectories(lw.st); err != nil {
 		return err
 	}
 	// Load Plugins
 	// plugin('pluginsLoaded');
-	if err := lw.t.Load(lw.s.Template); err != nil {
+	if err := lw.t.Load(lw.st.Template); err != nil {
 		return err
 	}
 	fs := http.FileServer(http.Dir("static"))
@@ -72,20 +70,24 @@ func (lw *LionWiki) createDirectories(s *Settings) error {
 }
 
 func (lw *LionWiki) Edit(s *Session) {
-	s.ConFormBegin = `<form action="" method="post">
+	showSource := 0
+	if s.ShowSource {
+		showSource = 1
+	}
+	s.ConFormBegin = fmt.Sprintf(`<form action="%s" method="post">
 	<input type="hidden" name="action" value="save"/>
-	<input type="hidden" name="last_changed" value="$last_changed_ts"/>
-	<input type="hidden" name="showsource" value="$showsource"/>
-	<input type="hidden" name="par" value="".h($par).""/>
-	<input type="hidden" name="page" value="".h($page).""/>`
+	<input type="hidden" name="last_changed" value="%s"/>
+	<input type="hidden" name="showsource" value="%d"/>
+	<input type="hidden" name="par" value="%s"/>
+	<input type="hidden" name="page" value="%s"/>`, s.Self, s.LastChangedTs, showSource, h(s.Par), h(s.Page))
 	s.ConFormEnd = "</form>"
-	s.ConTextarea = `<textarea class="contentTextarea" name="content" style="width:100%" cols="100" rows="30">'.h(str_replace("&lt;", "<", $CON)).'</textarea>`
-	s.ConPreview = `<input class="submit" type="submit" name="preview" value="'.$T_PREVIEW.'"/>`
+	s.ConTextarea = fmt.Sprintf(`<textarea class="contentTextarea" name="content" style="width:100%%" cols="100" rows="30">%s</textarea>`, strings.Replace(s.Content, "&lt;", "<", -1))
+	s.ConPreview = fmt.Sprintf(`<input class="submit" type="submit" name="preview" value="%s"/>`, s.Tr.Get("T_PREVIEW"))
 
 	if s.ShowSource {
-		s.ConSubmit = `<input class="submit" type="submit" value="'.$T_DONE.'"/>`
-		s.EditSummaryText = s.t.Get("T_EDIT_SUMMARY")
-		s.EditSummary = `<input type="text" name="esum" value="'.h($esum).'"/>`
+		s.ConSubmit = fmt.Sprintf(`<input class="submit" type="submit" value="%s"/>`, s.Tr.Get("T_DONE"))
+		s.EditSummaryText = s.Tr.Get("T_EDIT_SUMMARY")
+		s.EditSummary = fmt.Sprintf(`<input type="text" name="esum" value="%s"/>`, h(s.Esum))
 
 		// if(!authentified()) { // if not logged on, require password
 		// 	$FORM_PASSWORD = $T_PASSWORD;
@@ -99,7 +101,7 @@ func (lw *LionWiki) Edit(s *Session) {
 	}
 
 	if s.Preview {
-		s.Title = s.t.Get("T_PREVIEW") + s.Page
+		s.Title = s.Tr.Get("T_PREVIEW") + s.Page
 	}
 
 }

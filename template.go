@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -31,10 +32,10 @@ func NewTemplateVars() *TemplateVars {
 	return &tv
 }
 
-func (t *Template) Render(w http.ResponseWriter, s *Session, settings *Settings) {
+func (t *Template) Render(w http.ResponseWriter, s *Session, st *Settings) {
 	content := t.content
 	var val string
-	for k, v := range *(NewTVFromSession(s, settings)) {
+	for k, v := range *(NewTVFromSession(s, st)) {
 		re := regexp.MustCompile(`\{(([^}{]*) )?` + k + `( ([^}]*))?\}`)
 		val, _ = v.(string)
 		repl := ""
@@ -46,43 +47,73 @@ func (t *Template) Render(w http.ResponseWriter, s *Session, settings *Settings)
 	w.Write(content)
 }
 
-func NewTVFromSession(s *Session, settings *Settings) *TemplateVars {
+func NewTVFromSession(s *Session, st *Settings) *TemplateVars {
 	tv := NewTemplateVars()
 	if s.Action != ActionNone {
 		tv.Set("HEAD", s.Head+`<meta name="robots" content="noindex, nofollow"/>`)
 	} else {
 		tv.Set("HEAD", s.Head)
 	}
-	tv.Set("SEARCH_FORM", `<form action="'.$self.'" method="get"><span><input type="hidden" name="action" value="search"/><input type="submit" style="display:none;"/>`)
+	tv.Set("SEARCH_FORM", fmt.Sprintf(`<form action="%s" method="get"><span><input type="hidden" name="action" value="search"/><input type="submit" style="display:none;"/>`, s.Self))
 	tv.Set(`/SEARCH_FORM`, "</span></form>")
-	tv.Set("SEARCH_INPUT", `<input type="text" name="query" value="'.h($query).'"/>`)
-	tv.Set("SEARCH_SUBMIT", `<input class="submit" type="submit" value="$T_SEARCH"/>`)
-	tv.Set("HOME", `<a href=\"$self?page=".u($START_PAGE)."\">$T_HOME</a>`)
-	tv.Set("RECENT_CHANGES", `<a href=\"$self?action=recent\">$T_RECENT_CHANGES</a>`)
+	tv.Set("SEARCH_INPUT", fmt.Sprintf(`<input type="text" name="query" value="%s"/>`, h(s.Query)))
+	tv.Set("SEARCH_SUBMIT", fmt.Sprintf(`<input class="submit" type="submit" value="%s"/>`, s.Tr.Get("T_SEARCH")))
+	tv.Set("HOME", fmt.Sprintf(`<a href="%s?page=%s">%s</a>`, s.Self, u(st.StartPage), s.Tr.Get("T_HOME")))
+	tv.Set("RECENT_CHANGES", fmt.Sprintf(`<a href="%s?action=recent">%s</a>`, s.Self, s.Tr.Get("T_RECENT_CHANGES")))
 	tv.Set("ERROR", s.Error)
+
 	tv.Set("HISTORY", "")
 	if len(s.Page) > 0 {
-		tv.Set("HISTORY", `<a href=\"$self?page=".u($page)."&amp;action=history\">$T_HISTORY</a>`)
+		tv.Set("HISTORY", fmt.Sprintf(`<a href="%s?page=%s&amp;action=history">%s</a>`, s.Self, u(s.Page), s.Tr.Get("T_HISTORY")))
 	}
 
-	if s.Page == settings.StartPage && s.Page == s.Title {
-		tv.Set("PAGE_TITLE", settings.WikiTitle)
+	if s.Page == st.StartPage && s.Page == s.Title {
+		tv.Set("PAGE_TITLE", st.WikiTitle)
 	} else {
 		tv.Set("PAGE_TITLE", s.Title)
 	}
 	tv.Set("PAGE_TITLE_HEAD", h(s.Title))
 	tv.Set("PAGE_URL", u(s.Page))
 
-	// 'EDIT' => !$action ? ("<a href=\"$self?page=".u($page)."&amp;action=edit".(is_writable("$PG_DIR$page.txt") ? "\">$T_EDIT</a>" : "&amp;showsource=1\">$T_SHOW_SOURCE</a>")) : "",
-	//
-	tv.Set("WIKI_TITLE", h(settings.WikiTitle))
-	// 'LAST_CHANGED_TEXT' => $last_changed_ts ? $T_LAST_CHANGED : "",
-	// 'LAST_CHANGED' => $last_changed_ts ? date($DATE_FORMAT, $last_changed_ts + $LOCAL_HOUR * 3600) : "",
-	// 'CONTENT' => $action != "edit" ? $CON : "",
+	if s.Action == ActionNone {
+		label := s.Tr.Get("T_EDIT")
+		extra := ""
+		if !s.IsWritable {
+			label = s.Tr.Get("T_SHOW_SOURCE")
+			extra = "&amp;showsource=1"
+		}
+		tv.Set("EDIT", fmt.Sprintf(`<a href=\"%s?page=%s&amp;action=edit%s">%s</a>`, s.Self, u(s.Page), extra, label))
+	} else {
+		tv.Set("EDIT", "")
+	}
+
+	tv.Set("WIKI_TITLE", h(st.WikiTitle))
+	if s.LastChangedTs > 0 {
+		// TODO: 'LAST_CHANGED' => $last_changed_ts ? date($DATE_FORMAT, $last_changed_ts + $LOCAL_HOUR * 3600) : "",
+		tv.Set("LAST_CHANGED_TEXT", string(s.LastChangedTs))
+	} else {
+		tv.Set("LAST_CHANGED_TEXT", "")
+	}
+	if s.Action != ActionEdit {
+		tv.Set("CONTENT", s.Content)
+	} else {
+		tv.Set("CONTENT", "")
+	}
 	tv.Set("TOC", s.TOC)
-	// 'SYNTAX' => $action == "edit" || $preview ? "<a href=\"$SYNTAX_PAGE\">$T_SYNTAX</a>" : "",
-	// 'SHOW_PAGE' => $action == "edit" || $preview ? "<a href=\"$self?page=".u($page)."\">$T_SHOW_PAGE</a>" : "",
-	// 'COOKIE' => '<a href="'.$self.'?page='.u($page).'&amp;action='.u($action).'&amp;erasecookie=1">'.$T_ERASE_COOKIE.'</a>',
+
+	if s.Action == ActionEdit || s.Preview {
+		tv.Set("SYNTAX", fmt.Sprintf(`<a href="%s">%s</a>`, st.SyntaxPage, s.Tr.Get("T_SYNTAX")))
+	} else {
+		tv.Set("SYNTAX", "")
+	}
+
+	if s.Action == ActionEdit || s.Preview {
+		tv.Set("SHOW_PAGE", fmt.Sprintf(`<a href="%s?page=%s">%s</a>`, s.Self, u(s.Page), s.Tr.Get("T_SHOW_PAGE")))
+	} else {
+		tv.Set("SHOW_PAGE", "")
+	}
+
+	tv.Set("COOKIE", fmt.Sprintf(`<a href="%s?page=%s&amp;action=%s&amp;erasecookie=1">%s</a>`, s.Self, u(s.Page), u(string(s.Action)), s.Tr.Get("T_ERASE_COOKIE")))
 	tv.Set("CONTENT_FORM", s.ConFormBegin)
 	tv.Set("/CONTENT_FORM", s.ConFormEnd)
 	tv.Set("CONTENT_TEXTAREA", s.ConTextarea)
@@ -95,7 +126,6 @@ func NewTVFromSession(s *Session, settings *Settings) *TemplateVars {
 	tv.Set("FORM_PASSWORD", s.FormPassword)
 	tv.Set("FORM_PASSWORD_INPUT", s.FormPasswordInput)
 	return tv
-
 }
 
 func (tv *TemplateVars) Set(name string, value interface{}) {
