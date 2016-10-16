@@ -33,18 +33,22 @@ func NewTemplateVars() *TemplateVars {
 }
 
 func (t *Template) Render(w http.ResponseWriter, s *Session, st *Settings) {
-	content := t.content
+	content := string(t.content)
+
+	re := regexp.MustCompile(`\{([^}]* )?plugin:.+( [^}]*)?\}`) // get rid of absent plugin tags
+	content = re.ReplaceAllString(content, "")
+
 	var val string
 	for k, v := range *(NewTVFromSession(s, st)) {
 		re := regexp.MustCompile(`\{(([^}{]*) )?` + k + `( ([^}]*))?\}`)
 		val, _ = v.(string)
 		repl := ""
 		if len(val) > 0 {
-			repl = "$2" + strings.Replace(strings.TrimSpace(val), "$", "&#36;", -1) + "$4"
+			repl = "$2 " + strings.Replace(strings.TrimSpace(val), "$", "&#36;", -1) + "$4"
 		}
-		content = re.ReplaceAll(content, []byte(repl))
+		content = re.ReplaceAllString(content, repl)
 	}
-	w.Write(content)
+	w.Write([]byte(content))
 }
 
 func NewTVFromSession(s *Session, st *Settings) *TemplateVars {
