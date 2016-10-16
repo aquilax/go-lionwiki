@@ -86,7 +86,7 @@ func NewTVFromSession(s *Session, st *Settings) *TemplateVars {
 			label = s.Tr.Get("T_SHOW_SOURCE")
 			extra = "&amp;showsource=1"
 		}
-		tv.Set("EDIT", fmt.Sprintf(`<a href=\"%s?page=%s&amp;action=edit%s">%s</a>`, s.Self, u(s.Page), extra, label))
+		tv.Set("EDIT", fmt.Sprintf(`<a href="%s?page=%s&amp;action=edit%s">%s</a>`, s.Self, u(s.Page), extra, label))
 	} else {
 		tv.Set("EDIT", "")
 	}
