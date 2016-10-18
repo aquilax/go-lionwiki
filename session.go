@@ -9,6 +9,10 @@ const (
 	ActionEdit     ActionType = "edit"
 	ActionViewHTML ActionType = "view-html"
 	ActionRev      ActionType = "rev"
+	ActionHistory  ActionType = "history"
+	ActionDiff     ActionType = "diff"
+	ActionSearch   ActionType = "search"
+	ActionRecent   ActionType = "recent"
 )
 
 type Session struct {
